@@ -1,4 +1,4 @@
 led_mac: "BE:59:10:00:1D:B4" # The ble mac address for the LED strip
 gatt_char_uuid: "0000fff3-0000-1000-8000-00805f9b34fb" # The attr field for transmitting ble commands
-connection_timeout_sec: 300 # The timeout for looking for the LED strip with address led_mac
+connection_timeout_sec: 30 # The timeout for looking for the LED strip with address led_mac
 connection_retries: 50 # How often to repeat connections if the device has been successfully discovered before

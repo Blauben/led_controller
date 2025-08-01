@@ -15,6 +15,14 @@ signal_received = asyncio.Event()
 
 client: BleakClient | None = None
 
+instructions = """Instructions:
+                Random color change - Press ENTER
+                Turn off LED - Type "off" to turn off LED.
+                Turn on LED - Type "on" to turn on the LED.
+                Help Page - Type "help" to show this menu.
+                To quit this program press CTRL + C (turns off LED) or type "q" to exit without doing anything.
+"""
+
 
 async def send_command(command: bytes) -> None:
     global client
@@ -91,6 +99,22 @@ def sighandler(signum, frame) -> None:
     signal_received.set()
 
 
+async def parse_instr(instr: str) -> None:
+    if len(instr) == 0:
+        await send_command(color_command(rgb_hex=random.randbytes(3).hex()))
+    elif instr.strip().startswith("off"):
+        await send_command(power_command(turnOn=False))
+    elif instr.strip().startswith("on"):
+        await send_command(power_command(turnOn=True))
+    elif instr.strip().startswith("help"):
+        print(instructions)
+    elif instr.strip().startswith("q"):
+        print(f"{timestamp()} Exiting.")
+        exit(0)
+    else:
+        print(f"{timestamp()} Unknown command: {instr}")
+
+
 async def main():
     print(f"{timestamp()} Using config parameters: {config}")
     await led_connect_loop()
@@ -99,10 +123,10 @@ async def main():
     signal.signal(signal.SIGBREAK, sighandler)  # Ctrl+Break
     try:
         asyncio.create_task(schedule_cleanup())
-        await send_command(power_command(turnOn=True))
+        print(instructions)
         while True:
-            await send_command(color_command(rgb_hex=random.randbytes(3).hex()))
-            input("Press Enter to change color...")
+            instr = input("> ")
+            await parse_instr(instr)
     finally:
         signal_received.set()
 

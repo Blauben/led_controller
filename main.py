@@ -2,8 +2,7 @@ import datetime
 import random
 import signal
 import sys
-import traceback
-from asyncio import CancelledError
+from tkinter.colorchooser import askcolor
 
 from bleak import BleakClient, BleakError, BleakScanner
 import yaml
@@ -106,6 +105,10 @@ async def parse_instr(instr: str) -> None:
         await send_command(power_command(turnOn=False))
     elif instr.strip().startswith("on"):
         await send_command(power_command(turnOn=True))
+    elif instr.strip().startswith("c"):
+        color = askcolor()[1]
+        color = "ff0000" if color is None else str(color).replace("#", "").strip()
+        await send_command(color_command(rgb_hex=color))
     elif instr.strip().startswith("help"):
         print(instructions)
     elif instr.strip().startswith("q"):

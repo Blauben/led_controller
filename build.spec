@@ -28,7 +28,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name=f'led_autostart-{version}.exe',
+    name=f'led_control-{version}.exe',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

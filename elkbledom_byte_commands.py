@@ -1,6 +1,4 @@
 import asyncio
-import time
-from tkinter.colorchooser import askcolor
 
 import yaml
 from bleak import BleakClient, BleakError, BleakScanner
@@ -98,6 +96,10 @@ class LEDDriver:
         else:
             raise ConnectionError(
                 f"{timestamp()} BLE Connection to {self.config["led_mac"]} failed after several retries.")
+        if self.client.is_connected:
+            print(f"{timestamp()} Connected!")
+        else:
+            raise ConnectionError(f"{timestamp()} BLE Connection to {self.config['led_mac']} failed after several retries.")
 
     async def choose_color_change(self):
         color = askcolor()[1]

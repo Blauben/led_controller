@@ -66,7 +66,10 @@ async def main():
     while run_main_loop:
         instr = input("> ")
         command_call = await parse_instr(driver, instr)
-        await command_call()
+        try:
+            await command_call()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

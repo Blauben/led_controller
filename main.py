@@ -1,11 +1,17 @@
+import math
 import os.path
 import random
+from datetime import date, datetime as dt
+import time
+
+import schedule
 import signal
 from functools import partial
 from collections.abc import Callable
 
 from elkbledom_byte_commands import *
 from const import help_page, config_template
+from util import get_sunset
 
 run_main_loop = True
 
@@ -56,12 +62,42 @@ def register_sighandlers(driver: LEDDriver):
     signal.signal(signal.SIGTERM, partial(sighandler, driver))
 
 
+async def autostart_at_sunset_job(driver: LEDDriver):
+    print("Starting LED")
+    await async_command_map(driver)["on"]()
+    now = dt.now()
+    poweroff_minutes = max(30, 24 * 60 - (now.hour * 60 + now.minute))
+    print("Powering off in", poweroff_minutes, "minutes")
+    await async_command_map(driver, poweroff_minutes)["s"]()
+
+
+async def run_autostart_at_sunset(driver: LEDDriver):
+    sunset_time = dt.strptime(get_sunset(), "%I:%M:%S %p").time()
+    sunset = dt.combine(date.today(), sunset_time)
+
+    if dt.now() < sunset:
+        wait_seconds = (sunset - dt.now()).total_seconds()
+        print(f"{timestamp()} Scheduling autostart at sunset: {sunset} ({wait_seconds}s)")
+        await asyncio.sleep(wait_seconds)
+
+    await autostart_at_sunset_job(driver)
+
+
+async def handle_cli_args(driver: LEDDriver):
+    if "--autostart" in sys.argv:
+        await run_autostart_at_sunset(driver)
+
+
 async def main():
     generate_config()
     driver = LEDDriver()
     register_sighandlers(driver)
     print(f"{timestamp()} Using config parameters: {driver.config}")
     await driver.led_connect_loop()
+    if len(sys.argv) > 1:
+        await handle_cli_args(driver)
+        return
+
     print(f"{help_page}\n")
     while run_main_loop:
         instr = input("> ")

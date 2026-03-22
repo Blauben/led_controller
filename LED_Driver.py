@@ -1,9 +1,15 @@
 import asyncio
+import datetime
+import logging
+import sys
+import tkinter as tk
+from tkinter.colorchooser import askcolor
 
 import yaml
 from bleak import BleakClient, BleakError, BleakScanner
-import datetime
-import sys
+from docopt import extras
+
+logger = logging.getLogger(__name__)
 
 
 def timestamp():
@@ -33,6 +39,20 @@ def sync_time_command() -> bytes:
         f"7e0083{offtime.hour:02x}{offtime.minute:02x}{offtime.second:02x}{offtime.isoweekday():02x}00ef")
 
 
+def pick_color_hex() -> str | None:
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        # Force the modal dialog to the foreground so it is not hidden behind the terminal.
+        root.attributes("-topmost", True)
+        root.update_idletasks()
+        root.lift()
+        _, color_hex = askcolor(parent=root, title="Choose LED color")
+        return color_hex
+    finally:
+        root.destroy()
+
+
 class LEDDriver:
     config: dict
     signal_received = asyncio.Event()
@@ -53,10 +73,10 @@ class LEDDriver:
 
     async def send_command(self, command: bytes) -> None:
         try:
-            print(f"{timestamp()} Sending command: {command}")
+            logger.debug(f"Sending command: {command}")
             await self.client.write_gatt_char(self.config["gatt_char_uuid"], command, response=False)
         except BleakError as e:
-            print(f"{timestamp()} BleakError: {e}, Command failed. Reestablishing connection.")
+            logger.warning("Command failed. Reestablishing connection: %s", e)
             await self.led_connect_loop()
             await self.send_command(command)
 
@@ -65,44 +85,58 @@ class LEDDriver:
                                                          timeout=self.config["connection_timeout_sec"])
 
     async def led_connect_loop(self):
-        for _ in range(int(self.config["connection_retries"])):
+        max_retries = int(self.config["connection_retries"])
+        logger.info(f"Connecting to BLE LED strip.")
+        for retry in range(max_retries):
             try:
                 await self.__led_connect()
                 break
             except Exception as e:
-                print(
-                    f"{timestamp()} Could not connect to BLE LED. Error: {e}\nIs there an existing or old connection? Try restarting bluetooth.",
-                    file=sys.stderr)
+                logger.error(
+                    "Could not connect to BLE LED. Is there an existing or old connection? "
+                    "Try restarting bluetooth. retry=%d/%d error=%s",
+                    retry + 1,
+                    max_retries,
+                    e,
+                )
 
     async def await_connection(self):
-        for _ in range(3):
+        total_retries = 3
+        for retry in range(total_retries):
             try:
                 await self.client.connect(timeout=self.config["connection_timeout_sec"])
                 break
             except Exception as e:
-                print(f"{timestamp()} BLE Device Service unavailable ({e}). Trying again.", file=sys.stderr)
+                logger.warning(
+                    "BLE Device Service unavailable. retry=%d/%d error=%s",
+                    retry + 1,
+                    total_retries,
+                    e,
+                )
+
 
     async def __led_connect(self) -> None:
-        print(f"{timestamp()} Connecting to BLE LED strip.")
         device = await self.discover_device()
         if device is None:
             raise BleakError("Discovery of BLE device failed")
-        print(f"{timestamp()} Device discovered.")
+        logger.info(f"Device discovered.")
         self.client = BleakClient(device)
         await self.await_connection()
 
         if self.client.is_connected:
-            print(f"{timestamp()} Connected!")
+            logger.info(f"Connected!")
         else:
-            raise ConnectionError(
-                f"{timestamp()} BLE Connection to {self.config["led_mac"]} failed after several retries.")
-        if self.client.is_connected:
-            print(f"{timestamp()} Connected!")
-        else:
-            raise ConnectionError(f"{timestamp()} BLE Connection to {self.config['led_mac']} failed after several retries.")
+            err_msg = f"BLE Connection to {self.config["led_mac"]} failed after several retries."
+            logger.error(err_msg)
+            raise ConnectionError(err_msg)
 
     async def choose_color_change(self):
-        color = askcolor()[1]
+        try:
+            color = pick_color_hex()
+        except tk.TclError as e:
+            logger.error("Color picker could not be opened: %s", e)
+            return
+
         color = "ff0000" if color is None else str(color).replace("#", "").strip()
         await self.send_command(color_command(rgb_hex=color))
 
@@ -112,7 +146,7 @@ class LEDDriver:
 
     async def schedule_cleanup(self) -> None:
         await self.signal_received.wait()
-        print(f"{timestamp()} Cleaning up.")
+        logger.info("Cleaning up.")
         await self.send_command(power_command(turnOn=False))
         await self.client.disconnect()
 

@@ -5,7 +5,6 @@ description = "This is a simple LED controller library by leveraging the ELK-BLE
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "black>=26.5.1",
     "bleak==1.1.1",
     "pre-commit>=4.6.0",
     "pyyaml==6.0.3",

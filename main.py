@@ -15,8 +15,17 @@ from util import get_sunset
 
 run_main_loop = True
 
-handlers = [logging.StreamHandler(), logging.handlers.TimedRotatingFileHandler("LED_Controller.log", when="midnight", backupCount=2)]
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s", handlers=handlers)
+handlers = [
+    logging.StreamHandler(),
+    logging.handlers.TimedRotatingFileHandler(
+        "LED_Controller.log", when="midnight", backupCount=2
+    ),
+]
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+    handlers=handlers,
+)
 
 logger = logging.getLogger("LED_Controller_main")
 
@@ -48,15 +57,32 @@ def build_help_page(command_map: dict[str, CommandEntry]) -> str:
 
 def async_command_map(driver: LEDDriver, *args: Any) -> dict[str, CommandEntry]:
     command_map: dict[str, CommandEntry] = {
-        "off": CommandEntry("Turn the LED off", partial(driver.send_command, power_command(turnOn=False))),
-        "on": CommandEntry("Turn the LED on", partial(driver.send_command, power_command(turnOn=True))),
+        "off": CommandEntry(
+            "Turn the LED off",
+            partial(driver.send_command, power_command(turnOn=False)),
+        ),
+        "on": CommandEntry(
+            "Turn the LED on", partial(driver.send_command, power_command(turnOn=True))
+        ),
         "c": CommandEntry("Open the color picker dialog", driver.choose_color_change),
-        "s": CommandEntry("Schedule power-off in <minutes>", partial(driver.schedule_poweroff, *args)),
-        "b": CommandEntry("Set brightness to <0-100>", partial(driver.send_command, brightness_command(*args))),
+        "s": CommandEntry(
+            "Schedule power-off in <minutes>", partial(driver.schedule_poweroff, *args)
+        ),
+        "b": CommandEntry(
+            "Set brightness to <0-100>",
+            partial(driver.send_command, brightness_command(*args)),
+        ),
         "q": CommandEntry("Quit the controller", quit_main_loop),
-        "": CommandEntry("Send a random color", partial(driver.send_command, color_command(rgb_hex=random.randbytes(3).hex()))),
+        "": CommandEntry(
+            "Send a random color",
+            partial(
+                driver.send_command, color_command(rgb_hex=random.randbytes(3).hex())
+            ),
+        ),
     }
-    command_map["help"] = CommandEntry("Show this help page", partial(print_message, build_help_page(command_map)))
+    command_map["help"] = CommandEntry(
+        "Show this help page", partial(print_message, build_help_page(command_map))
+    )
     return command_map
 
 
@@ -69,7 +95,9 @@ async def parse_instr(driver: LEDDriver, instr: str) -> CommandHandler:
             logger.debug(f"Received command: {key}")
             return entry.command
     logger.warning(f"Received unrecognized command: {instr}")
-    return partial(print_message, f"Unknown command: {instr}\n\n{build_help_page(command_map)}")
+    return partial(
+        print_message, f"Unknown command: {instr}\n\n{build_help_page(command_map)}"
+    )
 
 
 def generate_config():
@@ -106,7 +134,11 @@ async def run_autostart_at_sunset(driver: LEDDriver):
 
     if dt.now() < sunset:
         wait_seconds = (sunset - dt.now()).total_seconds()
-        logger.info("Scheduling autostart at sunset: sunset=%s wait_seconds=%.0f", sunset, wait_seconds)
+        logger.info(
+            "Scheduling autostart at sunset: sunset=%s wait_seconds=%.0f",
+            sunset,
+            wait_seconds,
+        )
         await asyncio.sleep(wait_seconds)
 
     await autostart_at_sunset_job(driver)
@@ -146,7 +178,9 @@ async def main():
     if not sys.stdin.isatty():
         logger.debug(f"Reading from stdin...")
         instr = sys.stdin.read().replace("\n", "").replace("\r", "").strip()
-        logger.debug(f"Received piped data: %s. Treating as instruction and exiting...", instr)
+        logger.debug(
+            f"Received piped data: %s. Treating as instruction and exiting...", instr
+        )
         await execute_instr(driver, instr)
     elif len(sys.argv) > 1:
         await handle_cli_args(driver)

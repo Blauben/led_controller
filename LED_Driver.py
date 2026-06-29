@@ -30,13 +30,16 @@ def brightness_command(brightness: str = "100") -> bytes:
 
 def schedule_off_command(minutes: str = "60", disable=False) -> bytes:
     offtime = datetime.datetime.now() + datetime.timedelta(minutes=int(minutes))
-    return bytes.fromhex(f"7e0082{offtime.hour:02x}{offtime.minute:02x}0001{255 if not disable else 127:02x}ef")
+    return bytes.fromhex(
+        f"7e0082{offtime.hour:02x}{offtime.minute:02x}0001{255 if not disable else 127:02x}ef"
+    )
 
 
 def sync_time_command() -> bytes:
     offtime = datetime.datetime.now()
     return bytes.fromhex(
-        f"7e0083{offtime.hour:02x}{offtime.minute:02x}{offtime.second:02x}{offtime.isoweekday():02x}00ef")
+        f"7e0083{offtime.hour:02x}{offtime.minute:02x}{offtime.second:02x}{offtime.isoweekday():02x}00ef"
+    )
 
 
 def pick_color_hex() -> str | None:
@@ -74,15 +77,18 @@ class LEDDriver:
     async def send_command(self, command: bytes) -> None:
         try:
             logger.debug(f"Sending command: {command}")
-            await self.client.write_gatt_char(self.config["gatt_char_uuid"], command, response=False)
+            await self.client.write_gatt_char(
+                self.config["gatt_char_uuid"], command, response=False
+            )
         except BleakError as e:
             logger.warning("Command failed. Reestablishing connection: %s", e)
             await self.led_connect_loop()
             await self.send_command(command)
 
     async def discover_device(self):
-        return await BleakScanner.find_device_by_address(self.config["led_mac"],
-                                                         timeout=self.config["connection_timeout_sec"])
+        return await BleakScanner.find_device_by_address(
+            self.config["led_mac"], timeout=self.config["connection_timeout_sec"]
+        )
 
     async def led_connect_loop(self):
         max_retries = int(self.config["connection_retries"])
@@ -113,7 +119,6 @@ class LEDDriver:
                     total_retries,
                     e,
                 )
-
 
     async def __led_connect(self) -> None:
         device = await self.discover_device()

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "bleak==1.1.1",
+    "docopt>=0.6.2",
     "pre-commit>=4.6.0",
     "pyyaml==6.0.3",
     "requests==2.32.5",
